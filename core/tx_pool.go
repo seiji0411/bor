@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/nodeipc"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -1180,6 +1181,9 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 
 		// Accumulate all unknown transactions for deeper processing
 		news = append(news, tx)
+
+		// send pending tx to IPC channel
+		nodeipc.Shared().BroadcastPendingTx(tx)
 	}
 
 	if len(news) == 0 {
