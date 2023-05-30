@@ -21,7 +21,7 @@ type Server struct {
 	botClients map[string]*BotClient
 	mutexBot   *sync.RWMutex
 	serverMain *message.Server
-	logChan    chan []byte
+	dataChan   chan []byte
 }
 
 var instance *Server
@@ -33,7 +33,7 @@ func Shared() *Server {
 	instance = &Server{
 		botClients: make(map[string]*BotClient),
 		mutexBot:   new(sync.RWMutex),
-		logChan:    make(chan []byte),
+		dataChan:   make(chan []byte),
 	}
 	return instance
 }
@@ -91,7 +91,7 @@ func (s *Server) RunSendLog() {
 	go func() {
 		for {
 			select {
-			case data := <-s.logChan:
+			case data := <-s.dataChan:
 				s.mutexBot.RLock()
 				//log.Info("IpcServer BroadcastLog start", "clients", len(s.botClients), "len", len(data))
 				for _, botClient := range s.botClients {
@@ -113,7 +113,7 @@ func (s *Server) BroadcastBlockStart(number uint32, timestamp uint32) {
 		MessageType: message.MsgTypeBlockStart,
 		MessageData: bs,
 	})
-	s.logChan <- d
+	s.dataChan <- d
 }
 
 func (s *Server) BroadcastLog(data *types.Log) {
@@ -122,7 +122,7 @@ func (s *Server) BroadcastLog(data *types.Log) {
 		MessageType: message.MsgTypeLog,
 		MessageData: bl,
 	})
-	s.logChan <- d
+	s.dataChan <- d
 }
 
 func (s *Server) BroadcastBlockEnd(number uint32) {
@@ -130,7 +130,16 @@ func (s *Server) BroadcastBlockEnd(number uint32) {
 		MessageType: message.MsgTypeBlockEnd,
 		MessageData: utils.I32tob(number),
 	})
-	s.logChan <- d
+	s.dataChan <- d
+}
+
+func (s *Server) BroadcastPendingTx(tx *types.Transaction) {
+	ts, _ := tx.MarshalJSON()
+	d, _ := json.Marshal(&message.IPCMessage{
+		MessageType: message.MsgTypePendingTx,
+		MessageData: ts,
+	})
+	s.dataChan <- d
 }
 
 func (s *Server) checkClientStatus() {

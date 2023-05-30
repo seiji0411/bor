@@ -14,6 +14,7 @@ const (
 	MsgTypeBlockStart   MsgType = iota
 	MsgTypeLog          MsgType = iota
 	MsgTypeBlockEnd     MsgType = iota
+	MsgTypePendingTx    MsgType = iota
 )
 
 type CbMessage func(msg *ipc.Message)
