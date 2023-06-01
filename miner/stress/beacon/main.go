@@ -18,11 +18,8 @@
 package main
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"errors"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/nodeipc"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
@@ -511,28 +508,7 @@ func makeFullNode(genesis *core.Genesis) (*node.Node, *eth.Ethereum, *ethcatalys
 	}
 	err = stack.Start()
 
-	// Run NodeIPC
-	txChan := make(chan *types.Transaction, 100)
-	go nodeipc.Shared().Run(txChan)
-
-	// Broadcast logs to bots
-	logChan := make(chan []*types.Log, 1000)
-	ethBackend.BlockChain().SubscribeLogsEvent(logChan)
-	nodeipc.Shared().BroadcastLog(logChan)
-
-	// Submit tx
-	go runSubmitBotTx(txChan, ethBackend.APIBackend)
-
 	return stack, ethBackend, ethcatalyst.NewConsensusAPI(ethBackend), err
-}
-
-func runSubmitBotTx(txChan chan *types.Transaction, ethBackend ethapi.Backend) {
-	for {
-		select {
-		case tx := <-txChan:
-			_, _ = ethapi.SubmitTransaction(context.Background(), ethBackend, tx)
-		}
-	}
 }
 
 func makeLightNode(genesis *core.Genesis) (*node.Node, *les.LightEthereum, *lescatalyst.ConsensusAPI, error) {
