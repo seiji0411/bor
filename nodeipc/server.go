@@ -1,8 +1,10 @@
 package nodeipc
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/nodeipc/constant"
 	"github.com/ethereum/go-ethereum/nodeipc/message"
@@ -22,6 +24,7 @@ type Server struct {
 	mutexBot   *sync.RWMutex
 	serverMain *message.Server
 	dataChan   chan []byte
+	ethBackend ethapi.Backend
 }
 
 var instance *Server
@@ -33,12 +36,12 @@ func Shared() *Server {
 	instance = &Server{
 		botClients: make(map[string]*BotClient),
 		mutexBot:   new(sync.RWMutex),
-		dataChan:   make(chan []byte),
+		dataChan:   make(chan []byte, 1000),
 	}
 	return instance
 }
 
-func (s *Server) Run() {
+func (s *Server) Run(backend ethapi.Backend) {
 	log.Info("IpcServer Start")
 	botMainMonitor := func(msg *ipc.Message) {
 		switch message.MsgType(msg.MsgType) {
@@ -47,6 +50,8 @@ func (s *Server) Run() {
 		}
 	}
 	s.serverMain = message.NewServer(constant.BotMainIPC, botMainMonitor)
+
+	s.ethBackend = backend
 	go s.serverMain.Run()
 	go s.startServerSchedule()
 	go s.RunSendLog()
@@ -57,7 +62,7 @@ func (s *Server) addBotClient(name string) {
 	subscribeSubmit := func(msg *ipc.Message) {
 		switch message.MsgType(msg.MsgType) {
 		case message.MsgTypeMessage:
-			go submitTransaction(name, msg.Data)
+			go s.submitTransaction(name, msg.Data)
 		}
 	}
 	s.mutexBot.Lock()
@@ -82,9 +87,14 @@ func (s *Server) addBotClient(name string) {
 	}
 }
 
-func submitTransaction(client string, txnData []byte) {
+func (s *Server) submitTransaction(client string, txnData []byte) {
 	log.Info("IpcServer received submit Request", "client", client, "txData", string(txnData))
 	// todo submit
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(txnData); err != nil {
+		return
+	}
+	_, _ = ethapi.SubmitTransaction(context.Background(), s.ethBackend, tx)
 }
 
 func (s *Server) RunSendLog() {
@@ -116,13 +126,20 @@ func (s *Server) BroadcastBlockStart(number uint32, timestamp uint32) {
 	s.dataChan <- d
 }
 
-func (s *Server) BroadcastLog(data *types.Log) {
-	bl, _ := data.MarshalJSON()
-	d, _ := json.Marshal(&message.IPCMessage{
-		MessageType: message.MsgTypeLog,
-		MessageData: bl,
-	})
-	s.dataChan <- d
+func (s *Server) BroadcastLog(logChan chan []*types.Log) {
+	for {
+		select {
+		case logData := <-logChan:
+			for _, data := range logData {
+				bl, _ := data.MarshalJSON()
+				d, _ := json.Marshal(&message.IPCMessage{
+					MessageType: message.MsgTypeLog,
+					MessageData: bl,
+				})
+				s.dataChan <- d
+			}
+		}
+	}
 }
 
 func (s *Server) BroadcastBlockEnd(number uint32) {

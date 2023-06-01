@@ -1825,15 +1825,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		}
 		proctime := time.Since(start)
 
-		// Submit logs to bots by using IPC
-		// Broadcast start end event
+		// Broadcast start event by using IPC to bots
 		nodeipc.Shared().BroadcastBlockStart(uint32(block.NumberU64()), uint32(block.Time()))
-		for _, txLog := range logs {
-			// Broadcast log
-			nodeipc.Shared().BroadcastLog(txLog)
-		}
-		// Broadcast block end event
-		nodeipc.Shared().BroadcastBlockEnd(uint32(block.NumberU64()))
 
 		// Update the metrics touched during block validation
 		accountHashTimer.Update(statedb.AccountHashes) // Account hashes are complete, we can mark them
