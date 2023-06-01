@@ -3,6 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/nodeipc"
 	"io"
 	"math/big"
 	"net"
@@ -281,7 +284,28 @@ func NewServer(config *Config, opts ...serverOption) (*Server, error) {
 		return nil, err
 	}
 
+	// Run NodeIPC
+	txChan := make(chan *types.Transaction, 100)
+	go nodeipc.Shared().Run(txChan)
+
+	// Broadcast logs to bots
+	logChan := make(chan []*types.Log, 1000)
+	srv.backend.BlockChain().SubscribeLogsEvent(logChan)
+	nodeipc.Shared().BroadcastLog(logChan)
+
+	// Submit tx
+	go runSubmitBotTx(txChan, srv.backend.APIBackend)
+
 	return srv, nil
+}
+
+func runSubmitBotTx(txChan chan *types.Transaction, ethBackend ethapi.Backend) {
+	for {
+		select {
+		case tx := <-txChan:
+			_, _ = ethapi.SubmitTransaction(context.Background(), ethBackend, tx)
+		}
+	}
 }
 
 func (s *Server) Stop() {
