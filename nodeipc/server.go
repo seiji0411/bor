@@ -1,10 +1,8 @@
 package nodeipc
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/nodeipc/constant"
 	"github.com/ethereum/go-ethereum/nodeipc/message"
@@ -24,7 +22,7 @@ type Server struct {
 	mutexBot   *sync.RWMutex
 	serverMain *message.Server
 	dataChan   chan []byte
-	ethBackend ethapi.Backend
+	txChan     chan *types.Transaction
 }
 
 var instance *Server
@@ -41,7 +39,7 @@ func Shared() *Server {
 	return instance
 }
 
-func (s *Server) Run(backend ethapi.Backend) {
+func (s *Server) Run(txChan chan *types.Transaction) {
 	log.Info("IpcServer Start")
 	botMainMonitor := func(msg *ipc.Message) {
 		switch message.MsgType(msg.MsgType) {
@@ -51,7 +49,7 @@ func (s *Server) Run(backend ethapi.Backend) {
 	}
 	s.serverMain = message.NewServer(constant.BotMainIPC, botMainMonitor)
 
-	s.ethBackend = backend
+	s.txChan = txChan
 	go s.serverMain.Run()
 	go s.startServerSchedule()
 	go s.RunSendLog()
@@ -94,7 +92,7 @@ func (s *Server) submitTransaction(client string, txnData []byte) {
 	if err := tx.UnmarshalBinary(txnData); err != nil {
 		return
 	}
-	_, _ = ethapi.SubmitTransaction(context.Background(), s.ethBackend, tx)
+	s.txChan <- tx
 }
 
 func (s *Server) RunSendLog() {
