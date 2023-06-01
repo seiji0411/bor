@@ -2,6 +2,7 @@ package nodeipc
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/nodeipc/constant"
@@ -86,10 +87,11 @@ func (s *Server) addBotClient(name string) {
 }
 
 func (s *Server) submitTransaction(client string, txnData []byte) {
-	log.Info("IpcServer received submit Request", "client", client, "txData", string(txnData))
+	log.Info("IpcServer received submit Request", "client", client, "txData", fmt.Sprintf("0x%x", txnData))
 	// todo submit
 	tx := new(types.Transaction)
 	if err := tx.UnmarshalBinary(txnData); err != nil {
+		log.Info("unmarshal transaction failed", "err", err.Error())
 		return
 	}
 	s.txChan <- tx

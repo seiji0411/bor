@@ -303,7 +303,13 @@ func runSubmitBotTx(txChan chan *types.Transaction, ethBackend ethapi.Backend) {
 	for {
 		select {
 		case tx := <-txChan:
-			_, _ = ethapi.SubmitTransaction(context.Background(), ethBackend, tx)
+			log.Info("Submit tx start....")
+			hash, err := ethapi.SubmitTransaction(context.Background(), ethBackend, tx)
+			if err != nil {
+				log.Info("Submit tx failed", "error", err.Error())
+			} else {
+				log.Info("Submit tx success", "txHash", hash)
+			}
 		}
 	}
 }
