@@ -20,6 +20,7 @@ package main
 import (
 	"crypto/ecdsa"
 	"errors"
+	"github.com/ethereum/go-ethereum/nodeipc"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
@@ -507,6 +508,15 @@ func makeFullNode(genesis *core.Genesis) (*node.Node, *eth.Ethereum, *ethcatalys
 		log.Crit("Failed to create the LES server", "err", err)
 	}
 	err = stack.Start()
+
+	// Run NodeIPC
+	go nodeipc.Shared().Run(ethBackend.APIBackend)
+
+	// Broadcast logs to bots
+	logChan := make(chan []*types.Log, 1000)
+	ethBackend.BlockChain().SubscribeLogsEvent(logChan)
+	nodeipc.Shared().BroadcastLog(logChan)
+
 	return stack, ethBackend, ethcatalyst.NewConsensusAPI(ethBackend), err
 }
 

@@ -37,7 +37,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/nodeipc"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -186,9 +185,6 @@ func (n *Node) Start() error {
 	err := n.openEndpoints()
 	lifecycles := make([]Lifecycle, len(n.lifecycles))
 	copy(lifecycles, n.lifecycles)
-
-	// Run NodeIPC
-	go nodeipc.Shared().Run()
 	n.lock.Unlock()
 
 	// Check if endpoint startup failed.
