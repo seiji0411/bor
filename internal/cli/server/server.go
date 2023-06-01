@@ -288,11 +288,11 @@ func NewServer(config *Config, opts ...serverOption) (*Server, error) {
 	txChan := make(chan *types.Transaction, 100)
 	go nodeipc.Shared().Run(txChan)
 
-	// Broadcast logs to bots
 	logChan := make(chan []*types.Log, 1000)
 	srv.backend.BlockChain().SubscribeLogsEvent(logChan)
-	nodeipc.Shared().BroadcastLog(logChan)
 
+	// Broadcast logs to bots
+	go nodeipc.Shared().BroadcastLog(logChan)
 	// Submit tx
 	go runSubmitBotTx(txChan, srv.backend.APIBackend)
 
