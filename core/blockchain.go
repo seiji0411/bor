@@ -22,7 +22,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/nodeipc"
 	"io"
 	"math/big"
 	"os"
@@ -1908,9 +1907,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 			return it.index, err
 		}
 		proctime := time.Since(start)
-
-		// Broadcast start event by using IPC to bots
-		nodeipc.Shared().BroadcastBlockStart(uint32(block.NumberU64()), uint32(block.Time()))
 
 		// Update the metrics touched during block validation
 		accountHashTimer.Update(statedb.AccountHashes) // Account hashes are complete, we can mark them
