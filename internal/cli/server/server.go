@@ -338,15 +338,14 @@ func (s *Server) SimulateTx(txHash *common.Hash, txType uint8, txMsg *types.Mess
 	defer statedb.RevertToSnapshot(snapshot)
 
 	if err != nil {
-		log.Info("rejected tx", "from", txMsg.From(), "to", txMsg.To(), "error", err)
+		//log.Info("rejected tx", "from", txMsg.From(), "to", txMsg.To(), "error", err)
 		return
 	}
 
 	if msgResult.Failed() == false {
-		logs := statedb.Logs()
-		for _, txLog := range logs {
-			log.Info("Pending Log", "txHash", txHash.String(), "address", txLog.Address, "topic0", txLog.Topics[0].String(), "data", fmt.Sprintf("0x%x", txLog.Data))
-		}
+		//for _, txLog := range logs {
+		//	log.Info("Pending Log", "txHash", txHash.String(), "address", txLog.Address, "topic0", txLog.Topics[0].String(), "data", fmt.Sprintf("0x%x", txLog.Data))
+		//}
 		pendingTxChan <- &message.PendingTx{
 			TxHash:    txHash,
 			Type:      txType,
@@ -359,10 +358,10 @@ func (s *Server) SimulateTx(txHash *common.Hash, txType uint8, txMsg *types.Mess
 			GasFeeCap: txMsg.GasFeeCap(),
 			GasTipCap: txMsg.GasTipCap(),
 			Data:      txMsg.Data(),
-			Logs:      logs,
+			Logs:      statedb.Logs(),
 		}
 	} else {
-		log.Info("Pending Tx failed", "txHash", txHash.String(), "Error", msgResult.Err.Error())
+		//log.Info("Pending Tx failed", "txHash", txHash.String(), "Error", msgResult.Err.Error())
 	}
 }
 
