@@ -263,13 +263,13 @@ func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *type
 					log.Info("Blox pending Tx", "txHash", txContents.Hash, "to", txContents.To)
 					if len(s.botClients) > 0 {
 						// spew.Dump(payload.Params.Result)
-						txHash := common.HexToHash(txContents.Hash[2:])
-						nonce := utils.HexToUint(txContents.Nonce[2:])
-						gasLimit := utils.HexToUint(txContents.Gas[2:])
-						gasPrice := utils.HexToBigInt(txContents.GasPrice[2:])
-						maxFeePerGas := utils.HexToBigInt(txContents.MaxFeePerGas[2:])
-						maxPriorityFeePerGas := utils.HexToBigInt(txContents.MaxPriorityFeePerGas[2:])
-						txValue := utils.HexToBigInt(txContents.Value[2:])
+						txHash := common.HexToHash(txContents.Hash)
+						nonce := utils.HexToUint(txContents.Nonce)
+						gasLimit := utils.HexToUint(txContents.Gas)
+						gasPrice := utils.HexToBigInt(txContents.GasPrice)
+						maxFeePerGas := utils.HexToBigInt(txContents.MaxFeePerGas)
+						maxPriorityFeePerGas := utils.HexToBigInt(txContents.MaxPriorityFeePerGas)
+						txValue := utils.HexToBigInt(txContents.Value)
 						to := common.HexToAddress(txContents.To)
 						msg := types.NewMessage(
 							common.HexToAddress(txContents.From),
@@ -280,7 +280,7 @@ func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *type
 							gasPrice,
 							maxFeePerGas,
 							maxPriorityFeePerGas,
-							utils.HexToBytes(txContents.Input[2:]),
+							utils.HexToBytes(txContents.Input),
 							types.AccessList{},
 							false,
 						)
