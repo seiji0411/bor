@@ -2,12 +2,17 @@ package nodeipc
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/nodeipc/constant"
 	"github.com/ethereum/go-ethereum/nodeipc/message"
 	"github.com/ethereum/go-ethereum/nodeipc/utils"
+	"github.com/gorilla/websocket"
 	ipc "github.com/james-barrow/golang-ipc"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -39,7 +44,7 @@ func Shared() *Server {
 	return instance
 }
 
-func (s *Server) Run(txChan chan *types.Transaction) {
+func (s *Server) Run(txChan chan *types.Transaction, processPendingTx func(txHash common.Hash, tx *types.Message)) {
 	log.Info("IpcServer Start")
 	botMainMonitor := func(msg *ipc.Message) {
 		switch message.MsgType(msg.MsgType) {
@@ -52,7 +57,8 @@ func (s *Server) Run(txChan chan *types.Transaction) {
 	s.txChan = txChan
 	go s.serverMain.Run()
 	go s.startServerSchedule()
-	go s.RunSendLog()
+	go s.runSendLog()
+	go s.runPendingTx(processPendingTx)
 }
 
 func (s *Server) addBotClient(name string) {
@@ -96,7 +102,7 @@ func (s *Server) submitTransaction(client string, txnData []byte) {
 	s.txChan <- tx
 }
 
-func (s *Server) RunSendLog() {
+func (s *Server) runSendLog() {
 	go func() {
 		for {
 			select {
@@ -188,6 +194,97 @@ func (s *Server) startServerSchedule() {
 			select {
 			case <-ticker5Sec.C:
 				go s.checkClientStatus()
+			}
+		}
+	}()
+}
+
+func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *types.Message)) {
+	dialerGateway := &websocket.Dialer{
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: 5 * time.Second,
+	}
+
+	wsPendingSubscriber, _, err := dialerGateway.Dial("ws://localhost:28333/ws", http.Header{"Authorization": []string{"ZjQzNmI3ZDAtMTE0YS00NTAwLWI1NGQtN2UzZTcyMzMxNDdkOmJkZTYzOWYwYmQ0ZDJmYmQ5MzA3ZjBlZWQwNmE4MjMy"}})
+	if err != nil {
+		log.Info("Create Pending Subscription failed", "error", err.Error())
+		return
+	}
+
+	SubscribeAddresses := []string{
+		"0xE592427A0AEce92De3Edee1F18E0157C05861564",
+		"0xa5e0829caced8ffdd4de3c43696c57f7d7a678ff",
+	}
+
+	pendingSubRequest := fmt.Sprintf(`{"id": %d, "method": "subscribe", "params": ["newTxs", {"include": ["tx_hash", "tx_contents", "raw_tx"], "filters": "to in [%s]", "blockchain_network": "Polygon-Mainnet"}]}`, 1, strings.Join(SubscribeAddresses[:], ","))
+
+	err = wsPendingSubscriber.WriteMessage(websocket.TextMessage, []byte(pendingSubRequest))
+	if err != nil {
+		panic(fmt.Sprintf("Pending Subscription failed error: %s", err.Error()))
+	}
+	time.Sleep(time.Second * 5)
+
+	type SubscriptionData struct {
+		Method string
+		Params struct {
+			Subscription string
+			Result       struct {
+				TxHash     string
+				TxContents struct {
+					Hash                 string
+					Input                string
+					To                   string
+					From                 string
+					GasPrice             string
+					MaxFeePerGas         string
+					MaxPriorityFeePerGas string
+					Nonce                string
+					Value                string
+					Gas                  string
+				}
+				RawTx string
+			}
+		}
+		Jsonrpc string
+	}
+
+	go func() {
+		for {
+			_, nextNotification, e := wsPendingSubscriber.ReadMessage()
+			if e != nil {
+				log.Info("Blox Subscription failed", "error", e.Error())
+			} else {
+				var payload SubscriptionData
+				e = json.Unmarshal(nextNotification, &payload)
+				if e != nil {
+					log.Info("Blox subscribe parse failed", "error", e.Error())
+				} else if payload.Method == "subscribe" {
+					txContents := payload.Params.Result.TxContents
+					log.Info("Blox pending Tx", "txHash", txContents.Hash, "to", txContents.To)
+					// spew.Dump(payload.Params.Result)
+					txHash := common.HexToHash(txContents.Hash[2:])
+					nonce := utils.HexToUint(txContents.Nonce[2:])
+					gasLimit := utils.HexToUint(txContents.Gas[2:])
+					gasPrice := utils.HexToBigInt(txContents.GasPrice[2:])
+					maxFeePerGas := utils.HexToBigInt(txContents.MaxFeePerGas[2:])
+					maxPriorityFeePerGas := utils.HexToBigInt(txContents.MaxPriorityFeePerGas[2:])
+					txValue := utils.HexToBigInt(txContents.Value[2:])
+					to := common.HexToAddress(txContents.To)
+					msg := types.NewMessage(
+						common.HexToAddress(txContents.From),
+						&to,
+						nonce,
+						txValue,
+						gasLimit,
+						gasPrice,
+						maxFeePerGas,
+						maxPriorityFeePerGas,
+						utils.HexToBytes(txContents.Input[2:]),
+						types.AccessList{},
+						false,
+					)
+					processPendingTx(txHash, &msg)
+				}
 			}
 		}
 	}()
