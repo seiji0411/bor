@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/nodeipc"
+	"github.com/ethereum/go-ethereum/nodeipc/message"
 	"io"
 	"math/big"
 	"net"
@@ -315,7 +316,7 @@ func MakePreState(db ethdb.Database) *state.StateDB {
 	return statedb
 }
 
-func (s *Server) SimulateTx(txHash common.Hash, txMsg *types.Message) {
+func (s *Server) SimulateTx(txHash common.Hash, txMsg *types.Message, pendingTxChan chan *message.PendingTx) {
 	txContext := core.NewEVMTxContext(txMsg)
 
 	header := s.backend.BlockChain().CurrentHeader()
@@ -342,11 +343,13 @@ func (s *Server) SimulateTx(txHash common.Hash, txMsg *types.Message) {
 	}
 
 	if msgResult.Failed() == false {
-		blockLogs := statedb.Logs()
-		logs := statedb.GetLogs(txHash, header.Hash())
-		log.Info("Pending block logs", "block", len(blockLogs), "txLogs", len(logs))
+		logs := statedb.Logs()
 		for _, txLog := range logs {
 			log.Info("Pending Log", "txHash", txHash.String(), "address", txLog.Address, "topic0", txLog.Topics[0].String(), "data", fmt.Sprintf("0x%x", txLog.Data))
+		}
+		pendingTxChan <- &message.PendingTx{
+			Tx:   txMsg,
+			Logs: logs,
 		}
 	} else {
 		log.Info("Pending Tx failed", "txHash", txHash.String(), "Error", msgResult.Err.Error())
