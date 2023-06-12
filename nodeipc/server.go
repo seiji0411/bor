@@ -261,29 +261,33 @@ func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *type
 				} else if payload.Method == "subscribe" {
 					txContents := payload.Params.Result.TxContents
 					log.Info("Blox pending Tx", "txHash", txContents.Hash, "to", txContents.To)
-					// spew.Dump(payload.Params.Result)
-					txHash := common.HexToHash(txContents.Hash[2:])
-					nonce := utils.HexToUint(txContents.Nonce[2:])
-					gasLimit := utils.HexToUint(txContents.Gas[2:])
-					gasPrice := utils.HexToBigInt(txContents.GasPrice[2:])
-					maxFeePerGas := utils.HexToBigInt(txContents.MaxFeePerGas[2:])
-					maxPriorityFeePerGas := utils.HexToBigInt(txContents.MaxPriorityFeePerGas[2:])
-					txValue := utils.HexToBigInt(txContents.Value[2:])
-					to := common.HexToAddress(txContents.To)
-					msg := types.NewMessage(
-						common.HexToAddress(txContents.From),
-						&to,
-						nonce,
-						txValue,
-						gasLimit,
-						gasPrice,
-						maxFeePerGas,
-						maxPriorityFeePerGas,
-						utils.HexToBytes(txContents.Input[2:]),
-						types.AccessList{},
-						false,
-					)
-					processPendingTx(txHash, &msg)
+					if len(s.botClients) > 0 {
+						// spew.Dump(payload.Params.Result)
+						txHash := common.HexToHash(txContents.Hash[2:])
+						nonce := utils.HexToUint(txContents.Nonce[2:])
+						gasLimit := utils.HexToUint(txContents.Gas[2:])
+						gasPrice := utils.HexToBigInt(txContents.GasPrice[2:])
+						maxFeePerGas := utils.HexToBigInt(txContents.MaxFeePerGas[2:])
+						maxPriorityFeePerGas := utils.HexToBigInt(txContents.MaxPriorityFeePerGas[2:])
+						txValue := utils.HexToBigInt(txContents.Value[2:])
+						to := common.HexToAddress(txContents.To)
+						msg := types.NewMessage(
+							common.HexToAddress(txContents.From),
+							&to,
+							nonce,
+							txValue,
+							gasLimit,
+							gasPrice,
+							maxFeePerGas,
+							maxPriorityFeePerGas,
+							utils.HexToBytes(txContents.Input[2:]),
+							types.AccessList{},
+							false,
+						)
+
+						log.Info("Start Pending Simulate", "txHash", txContents.Hash)
+						processPendingTx(txHash, &msg)
+					}
 				}
 			}
 		}
