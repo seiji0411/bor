@@ -1,7 +1,10 @@
 package utils
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"math/big"
 	"time"
 )
 
@@ -27,4 +30,33 @@ func Btoi32(val []byte) uint32 {
 		r |= uint32(val[i]) << (8 * i)
 	}
 	return r
+}
+
+func HexDecodeString(str string) []byte {
+	if len(str)%2 == 1 {
+		buf, _ := hex.DecodeString("0" + str)
+		return buf
+	}
+	buf, _ := hex.DecodeString(str)
+	return buf
+}
+
+func HexToBigInt(str string) *big.Int {
+	buf := HexDecodeString(str)
+	return new(big.Int).SetBytes(buf)
+}
+
+func HexToBytes(str string) []byte {
+	buf := HexDecodeString(str)
+	return buf
+}
+
+func HexToInt(str string) int {
+	buf := HexDecodeString(str)
+	return int(int32(binary.BigEndian.Uint32(buf)))
+}
+
+func HexToUint(str string) uint64 {
+	buf := HexDecodeString(str)
+	return binary.BigEndian.Uint64(buf)
 }

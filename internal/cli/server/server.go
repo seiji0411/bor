@@ -3,7 +3,13 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/nodeipc"
 	"io"
@@ -286,7 +292,7 @@ func NewServer(config *Config, opts ...serverOption) (*Server, error) {
 
 	// Run NodeIPC
 	txChan := make(chan *types.Transaction, 100)
-	go nodeipc.Shared().Run(txChan)
+	go nodeipc.Shared().Run(txChan, srv.SimulateTx)
 
 	logChan := make(chan []*types.Log, 1000)
 	srv.backend.BlockChain().SubscribeLogsEvent(logChan)
@@ -297,6 +303,41 @@ func NewServer(config *Config, opts ...serverOption) (*Server, error) {
 	go runSubmitBotTx(txChan, srv.backend.APIBackend)
 
 	return srv, nil
+}
+
+func MakePreState(db ethdb.Database) *state.StateDB {
+	sdb := state.NewDatabase(db)
+	statedb, _ := state.New(common.Hash{}, sdb, nil)
+
+	// Commit and re-open to start with a clean state.
+	root, _ := statedb.Commit(false)
+	statedb, _ = state.New(root, sdb, nil)
+	return statedb
+}
+
+func (s *Server) SimulateTx(txHash common.Hash, txMsg *types.Message) {
+	txContext := core.NewEVMTxContext(txMsg)
+
+	statedb := MakePreState(rawdb.NewMemoryDatabase())
+	header := s.backend.BlockChain().CurrentHeader()
+	blockContext := core.NewEVMBlockContext(header, s.backend.BlockChain(), &header.Coinbase)
+
+	snapshot := statedb.Snapshot()
+	vmenv := vm.NewEVM(blockContext, txContext, statedb, s.backend.BlockChain().Config(), vm.Config{})
+
+	msgResult, err := core.ApplyMessage(vmenv, txMsg, new(core.GasPool).AddGas(txMsg.Gas()))
+	if err != nil {
+		statedb.RevertToSnapshot(snapshot)
+		log.Info("rejected tx", "from", txMsg.From(), "to", txMsg.To(), "error", err)
+		return
+	}
+
+	if msgResult.Failed() == false {
+		logs := statedb.GetLogs(txHash, header.Hash())
+		for _, txlog := range logs {
+			log.Info("Pending Log", "txHash", txHash.String(), "address", txlog.Address, "topic0", txlog.Topics[0].String(), "data", fmt.Sprintf("0x%x", txlog.Data))
+		}
+	}
 }
 
 func runSubmitBotTx(txChan chan *types.Transaction, ethBackend ethapi.Backend) {
