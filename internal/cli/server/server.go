@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/nodeipc"
+	"github.com/onsi/ginkgo/reporters/stenographer/support/go-colorable"
 	"io"
 	"math/big"
 	"net"
@@ -318,16 +318,20 @@ func MakePreState(db ethdb.Database) *state.StateDB {
 func (s *Server) SimulateTx(txHash common.Hash, txMsg *types.Message) {
 	txContext := core.NewEVMTxContext(txMsg)
 
-	statedb := MakePreState(rawdb.NewMemoryDatabase())
 	header := s.backend.BlockChain().CurrentHeader()
 	blockContext := core.NewEVMBlockContext(header, s.backend.BlockChain(), &header.Coinbase)
+	statedb, err := s.backend.StateAtBlock(s.backend.BlockChain().CurrentBlock(), uint64(128), nil, true, false)
+	if err != nil {
+		return
+	}
 
 	snapshot := statedb.Snapshot()
 	vmenv := vm.NewEVM(blockContext, txContext, statedb, s.backend.BlockChain().Config(), vm.Config{})
 
 	msgResult, err := core.ApplyMessage(vmenv, txMsg, new(core.GasPool).AddGas(txMsg.Gas()))
+	defer statedb.RevertToSnapshot(snapshot)
+
 	if err != nil {
-		statedb.RevertToSnapshot(snapshot)
 		log.Info("rejected tx", "from", txMsg.From(), "to", txMsg.To(), "error", err)
 		return
 	}
