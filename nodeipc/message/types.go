@@ -1,6 +1,9 @@
 package message
 
-import ipc "github.com/james-barrow/golang-ipc"
+import (
+	"github.com/ethereum/go-ethereum/core/types"
+	ipc "github.com/james-barrow/golang-ipc"
+)
 
 type MsgType int
 
@@ -27,4 +30,9 @@ type IPCMessage struct {
 type IPCBlock struct {
 	BlockNumber    uint32 `json:"blockNumber"`
 	BlockTimestamp uint32 `json:"blockTimestamp"`
+}
+
+type PendingTx struct {
+	Tx   *types.Message
+	Logs []*types.Log
 }

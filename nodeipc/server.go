@@ -24,11 +24,12 @@ type BotClient struct {
 }
 
 type Server struct {
-	botClients map[string]*BotClient
-	mutexBot   *sync.RWMutex
-	serverMain *message.Server
-	dataChan   chan []byte
-	txChan     chan *types.Transaction
+	botClients    map[string]*BotClient
+	mutexBot      *sync.RWMutex
+	serverMain    *message.Server
+	dataChan      chan []byte
+	txChan        chan *types.Transaction
+	pendingTxChan chan *message.PendingTx
 }
 
 var instance *Server
@@ -38,14 +39,15 @@ func Shared() *Server {
 		return instance
 	}
 	instance = &Server{
-		botClients: make(map[string]*BotClient),
-		mutexBot:   new(sync.RWMutex),
-		dataChan:   make(chan []byte, 1000),
+		botClients:    make(map[string]*BotClient),
+		mutexBot:      new(sync.RWMutex),
+		dataChan:      make(chan []byte, 1000),
+		pendingTxChan: make(chan *message.PendingTx),
 	}
 	return instance
 }
 
-func (s *Server) Run(txChan chan *types.Transaction, processPendingTx func(txHash common.Hash, tx *types.Message)) {
+func (s *Server) Run(txChan chan *types.Transaction, processPendingTx func(txHash common.Hash, tx *types.Message, pendingTxChan chan *message.PendingTx)) {
 	log.Info("IpcServer Start")
 	botMainMonitor := func(msg *ipc.Message) {
 		switch message.MsgType(msg.MsgType) {
@@ -58,8 +60,9 @@ func (s *Server) Run(txChan chan *types.Transaction, processPendingTx func(txHas
 	s.txChan = txChan
 	go s.serverMain.Run()
 	go s.startServerSchedule()
-	go s.runSendLog()
+	go s.runSendData()
 	go s.runPendingTx(processPendingTx)
+	go s.broadcastPendingLog()
 }
 
 func (s *Server) addBotClient(name string) {
@@ -103,7 +106,7 @@ func (s *Server) submitTransaction(client string, txnData []byte) {
 	s.txChan <- tx
 }
 
-func (s *Server) runSendLog() {
+func (s *Server) runSendData() {
 	go func() {
 		for {
 			select {
@@ -146,6 +149,20 @@ func (s *Server) BroadcastLog(logChan chan []*types.Log) {
 					s.dataChan <- d
 				}
 			}
+		}
+	}
+}
+
+func (s *Server) broadcastPendingLog() {
+	for {
+		select {
+		case pendingTx := <-s.pendingTxChan:
+			bl, _ := json.Marshal(pendingTx)
+			d, _ := json.Marshal(&message.IPCMessage{
+				MessageType: message.MsgTypePendingTx,
+				MessageData: bl,
+			})
+			s.dataChan <- d
 		}
 	}
 }
@@ -204,7 +221,7 @@ func (s *Server) startServerSchedule() {
 
 var bigZero = big.NewInt(0)
 
-func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *types.Message)) {
+func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *types.Message, pendingTxChan chan *message.PendingTx)) {
 	dialerGateway := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
 		HandshakeTimeout: 5 * time.Second,
@@ -297,7 +314,7 @@ func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *type
 						)
 
 						log.Info("Start Pending Simulate", "txHash", txContents.Hash)
-						processPendingTx(txHash, &msg)
+						processPendingTx(txHash, &msg, s.pendingTxChan)
 					}
 				}
 			}
