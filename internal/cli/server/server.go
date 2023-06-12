@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -326,6 +327,11 @@ func (s *Server) SimulateTx(txHash common.Hash, txMsg *types.Message) {
 
 	snapshot := statedb.Snapshot()
 	vmenv := vm.NewEVM(blockContext, txContext, statedb, s.backend.BlockChain().Config(), vm.Config{})
+
+	// If baseFee provided, set gasPrice to effectiveGasPrice.
+	if blockContext.BaseFee != nil {
+		txMsg.GasPrice().Set(math.BigMin(txMsg.GasPrice().Add(txMsg.GasTipCap(), blockContext.BaseFee), txMsg.GasFeeCap()))
+	}
 
 	msgResult, err := core.ApplyMessage(vmenv, txMsg, new(core.GasPool).AddGas(txMsg.Gas()))
 	defer statedb.RevertToSnapshot(snapshot)
