@@ -21,8 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mattn/go-colorable"
-	"github.com/mattn/go-isatty"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
@@ -337,6 +335,8 @@ func (s *Server) SimulateTx(txHash common.Hash, txMsg *types.Message) {
 		for _, txlog := range logs {
 			log.Info("Pending Log", "txHash", txHash.String(), "address", txlog.Address, "topic0", txlog.Topics[0].String(), "data", fmt.Sprintf("0x%x", txlog.Data))
 		}
+	} else {
+		log.Info("Pending Tx failed", "txHash", txHash.String(), "Error", msgResult.Err.Error())
 	}
 }
 
