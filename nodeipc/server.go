@@ -136,12 +136,14 @@ func (s *Server) BroadcastLog(logChan chan []*types.Log) {
 		select {
 		case logData := <-logChan:
 			for _, data := range logData {
-				bl, _ := data.MarshalJSON()
-				d, _ := json.Marshal(&message.IPCMessage{
-					MessageType: message.MsgTypeLog,
-					MessageData: bl,
-				})
-				s.dataChan <- d
+				if data.BlockNumber > 0 {
+					bl, _ := data.MarshalJSON()
+					d, _ := json.Marshal(&message.IPCMessage{
+						MessageType: message.MsgTypeLog,
+						MessageData: bl,
+					})
+					s.dataChan <- d
+				}
 			}
 		}
 	}
