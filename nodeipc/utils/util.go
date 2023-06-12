@@ -33,6 +33,9 @@ func Btoi32(val []byte) uint32 {
 }
 
 func HexDecodeString(_str string) []byte {
+	if len(_str) == 0 {
+		return []byte{}
+	}
 	var str = _str
 	if _str[0:2] == "0x" {
 		str = _str[2:]
