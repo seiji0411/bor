@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/nodeipc/utils"
 	"github.com/gorilla/websocket"
 	ipc "github.com/james-barrow/golang-ipc"
+	"math/big"
 	"net/http"
 	"strings"
 	"sync"
@@ -201,6 +202,8 @@ func (s *Server) startServerSchedule() {
 	}()
 }
 
+var bigZero = big.NewInt(0)
+
 func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *types.Message)) {
 	dialerGateway := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
@@ -270,7 +273,13 @@ func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *type
 						gasLimit := utils.HexToUint(txContents.Gas)
 						gasPrice := utils.HexToBigInt(txContents.GasPrice)
 						maxFeePerGas := utils.HexToBigInt(txContents.MaxFeePerGas)
+						if maxFeePerGas.Cmp(bigZero) == 0 {
+							maxFeePerGas.Set(gasPrice)
+						}
 						maxPriorityFeePerGas := utils.HexToBigInt(txContents.MaxPriorityFeePerGas)
+						if maxPriorityFeePerGas.Cmp(bigZero) == 0 {
+							maxPriorityFeePerGas.Set(gasPrice)
+						}
 						txValue := utils.HexToBigInt(txContents.Value)
 						to := common.HexToAddress(txContents.To)
 						msg := types.NewMessage(
