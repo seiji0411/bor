@@ -61,8 +61,8 @@ func (s *Server) Run(txChan chan *types.Transaction, processPendingTx func(txHas
 	go s.serverMain.Run()
 	go s.startServerSchedule()
 	go s.runSendData()
-	go s.runPendingTx(processPendingTx)
-	go s.broadcastPendingLog()
+	//go s.runPendingTx(processPendingTx)
+	//go s.broadcastPendingLog()
 }
 
 func (s *Server) addBotClient(name string) {
@@ -283,7 +283,7 @@ func (s *Server) runPendingTx(processPendingTx func(txHash *common.Hash, txType 
 					log.Info("Blox subscribe parse failed", "error", e.Error())
 				} else if payload.Method == "subscribe" {
 					txContents := payload.Params.Result.TxContents
-					log.Info("Blox pending Tx", "txHash", txContents.Hash, "to", txContents.To)
+					//log.Info("Blox pending Tx", "txHash", txContents.Hash, "to", txContents.To)
 					if len(s.botClients) > 0 {
 						// spew.Dump(payload.Params.Result)
 						txHash := common.HexToHash(txContents.Hash)
@@ -315,7 +315,7 @@ func (s *Server) runPendingTx(processPendingTx func(txHash *common.Hash, txType 
 							false,
 						)
 
-						log.Info("Start Pending Simulate", "txHash", txContents.Hash)
+						//log.Info("Start Pending Simulate", "txHash", txContents.Hash)
 						processPendingTx(&txHash, txType, &msg, s.pendingTxChan)
 					}
 				}
