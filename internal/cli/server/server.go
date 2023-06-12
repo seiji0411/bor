@@ -342,9 +342,11 @@ func (s *Server) SimulateTx(txHash common.Hash, txMsg *types.Message) {
 	}
 
 	if msgResult.Failed() == false {
+		blockLogs := statedb.Logs()
 		logs := statedb.GetLogs(txHash, header.Hash())
-		for _, txlog := range logs {
-			log.Info("Pending Log", "txHash", txHash.String(), "address", txlog.Address, "topic0", txlog.Topics[0].String(), "data", fmt.Sprintf("0x%x", txlog.Data))
+		log.Info("Pending block logs", "block", len(blockLogs), "txLogs", len(logs))
+		for _, txLog := range logs {
+			log.Info("Pending Log", "txHash", txHash.String(), "address", txLog.Address, "topic0", txLog.Topics[0].String(), "data", fmt.Sprintf("0x%x", txLog.Data))
 		}
 	} else {
 		log.Info("Pending Tx failed", "txHash", txHash.String(), "Error", msgResult.Err.Error())
