@@ -316,7 +316,7 @@ func MakePreState(db ethdb.Database) *state.StateDB {
 	return statedb
 }
 
-func (s *Server) SimulateTx(txHash common.Hash, txMsg *types.Message, pendingTxChan chan *message.PendingTx) {
+func (s *Server) SimulateTx(txHash *common.Hash, txType uint8, txMsg *types.Message, pendingTxChan chan *message.PendingTx) {
 	txContext := core.NewEVMTxContext(txMsg)
 
 	header := s.backend.BlockChain().CurrentHeader()
@@ -348,8 +348,18 @@ func (s *Server) SimulateTx(txHash common.Hash, txMsg *types.Message, pendingTxC
 			log.Info("Pending Log", "txHash", txHash.String(), "address", txLog.Address, "topic0", txLog.Topics[0].String(), "data", fmt.Sprintf("0x%x", txLog.Data))
 		}
 		pendingTxChan <- &message.PendingTx{
-			Tx:   txMsg,
-			Logs: logs,
+			TxHash:    txHash,
+			Type:      txType,
+			To:        txMsg.To(),
+			From:      txMsg.From(),
+			Nonce:     txMsg.Nonce(),
+			Amount:    txMsg.Value(),
+			GasLimit:  txMsg.Gas(),
+			GasPrice:  txMsg.GasPrice(),
+			GasFeeCap: txMsg.GasFeeCap(),
+			GasTipCap: txMsg.GasTipCap(),
+			Data:      txMsg.Data(),
+			Logs:      logs,
 		}
 	} else {
 		log.Info("Pending Tx failed", "txHash", txHash.String(), "Error", msgResult.Err.Error())
