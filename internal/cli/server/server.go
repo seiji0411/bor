@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/nodeipc"
-	"github.com/onsi/ginkgo/reporters/stenographer/support/go-colorable"
 	"io"
 	"math/big"
 	"net"
