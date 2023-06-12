@@ -66,5 +66,7 @@ func HexToInt(str string) int {
 
 func HexToUint(str string) uint64 {
 	buf := HexDecodeString(str)
-	return binary.BigEndian.Uint64(buf)
+	ret := make([]byte, 8)
+	copy(ret[8-len(buf):], buf)
+	return binary.BigEndian.Uint64(ret)
 }
