@@ -47,7 +47,7 @@ func Shared() *Server {
 	return instance
 }
 
-func (s *Server) Run(txChan chan *types.Transaction, processPendingTx func(txHash common.Hash, tx *types.Message, pendingTxChan chan *message.PendingTx)) {
+func (s *Server) Run(txChan chan *types.Transaction, processPendingTx func(txHash *common.Hash, txType uint8, tx *types.Message, pendingTxChan chan *message.PendingTx)) {
 	log.Info("IpcServer Start")
 	botMainMonitor := func(msg *ipc.Message) {
 		switch message.MsgType(msg.MsgType) {
@@ -221,7 +221,7 @@ func (s *Server) startServerSchedule() {
 
 var bigZero = big.NewInt(0)
 
-func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *types.Message, pendingTxChan chan *message.PendingTx)) {
+func (s *Server) runPendingTx(processPendingTx func(txHash *common.Hash, txType uint8, tx *types.Message, pendingTxChan chan *message.PendingTx)) {
 	dialerGateway := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
 		HandshakeTimeout: 5 * time.Second,
@@ -254,6 +254,7 @@ func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *type
 				TxHash     string
 				TxContents struct {
 					Hash                 string
+					Type                 string
 					Input                string
 					To                   string
 					From                 string
@@ -286,6 +287,7 @@ func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *type
 					if len(s.botClients) > 0 {
 						// spew.Dump(payload.Params.Result)
 						txHash := common.HexToHash(txContents.Hash)
+						txType := uint8(utils.HexToUint(txContents.Type))
 						nonce := utils.HexToUint(txContents.Nonce)
 						gasLimit := utils.HexToUint(txContents.Gas)
 						gasPrice := utils.HexToBigInt(txContents.GasPrice)
@@ -314,7 +316,7 @@ func (s *Server) runPendingTx(processPendingTx func(txHash common.Hash, tx *type
 						)
 
 						log.Info("Start Pending Simulate", "txHash", txContents.Hash)
-						processPendingTx(txHash, &msg, s.pendingTxChan)
+						processPendingTx(&txHash, txType, &msg, s.pendingTxChan)
 					}
 				}
 			}

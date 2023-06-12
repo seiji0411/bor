@@ -1,8 +1,10 @@
 package message
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	ipc "github.com/james-barrow/golang-ipc"
+	"math/big"
 )
 
 type MsgType int
@@ -33,6 +35,16 @@ type IPCBlock struct {
 }
 
 type PendingTx struct {
-	Tx   *types.Message
-	Logs []*types.Log
+	TxHash    *common.Hash    `json:"txHash"`
+	Type      uint8           `json:"Type"`
+	To        *common.Address `json:"to"`
+	From      common.Address  `json:"from"`
+	Nonce     uint64          `json:"nonce"`
+	Amount    *big.Int        `json:"amount"`
+	GasLimit  uint64          `json:"gasLimit"`
+	GasPrice  *big.Int        `json:"gasPrice"`
+	GasFeeCap *big.Int        `json:"gasFeeCap"`
+	GasTipCap *big.Int        `json:"gasTipCap"`
+	Data      []byte          `json:"data"`
+	Logs      []*types.Log    `json:"logs"`
 }
