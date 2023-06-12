@@ -32,7 +32,15 @@ func Btoi32(val []byte) uint32 {
 	return r
 }
 
-func HexDecodeString(str string) []byte {
+func HexDecodeString(_str string) []byte {
+	var str = _str
+	if _str[0:2] == "0x" {
+		str = _str[2:]
+	}
+	if len(str) == 0 {
+		return []byte{}
+	}
+
 	if len(str)%2 == 1 {
 		buf, _ := hex.DecodeString("0" + str)
 		return buf
