@@ -61,8 +61,8 @@ func (s *Server) Run(txChan chan *types.Transaction, processPendingTx func(txHas
 	go s.serverMain.Run()
 	go s.startServerSchedule()
 	go s.runSendData()
-	//go s.runPendingTx(processPendingTx)
-	//go s.broadcastPendingLog()
+	go s.runPendingTx(processPendingTx)
+	go s.broadcastPendingLog()
 }
 
 func (s *Server) addBotClient(name string) {
@@ -233,12 +233,7 @@ func (s *Server) runPendingTx(processPendingTx func(txHash *common.Hash, txType 
 		return
 	}
 
-	SubscribeAddresses := []string{
-		"0xE592427A0AEce92De3Edee1F18E0157C05861564",
-		"0xa5e0829caced8ffdd4de3c43696c57f7d7a678ff",
-	}
-
-	pendingSubRequest := fmt.Sprintf(`{"id": %d, "method": "subscribe", "params": ["newTxs", {"include": ["tx_hash", "tx_contents", "raw_tx"], "filters": "to in [%s]", "blockchain_network": "Polygon-Mainnet"}]}`, 1, strings.Join(SubscribeAddresses[:], ","))
+	pendingSubRequest := fmt.Sprintf(`{"id": %d, "method": "subscribe", "params": ["newTxs", {"include": ["tx_hash", "tx_contents", "raw_tx"], "filters": "to in [%s]", "blockchain_network": "Polygon-Mainnet"}]}`, 1, strings.Join(constant.SubscribeAddresses[:], ","))
 
 	err = wsPendingSubscriber.WriteMessage(websocket.TextMessage, []byte(pendingSubRequest))
 	if err != nil {
