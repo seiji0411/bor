@@ -1,4 +1,4 @@
-# Bor Overview
+# Bor Overview including IPC (for trading communication with bot processes)
 Bor is the Official Golang implementation of the Matic protocol. It is a fork of Go Ethereum - https://github.com/ethereum/go-ethereum and EVM compatible.
 
 ![Forks](https://img.shields.io/github/forks/maticnetwork/bor?style=social)
